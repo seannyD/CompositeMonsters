@@ -1,0 +1,1041 @@
+---
+title: "Composite Monsters"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r echo=F, eval=F}
+try(setwd("C:/Users/tknow/Desktop/project/analysis"))
+try(setwd("~/OneDrive - Cardiff University/Conferences/EmberWorkshop/projects/Knowlton/project/analysis/"))
+```
+
+# Introduction
+
+# Load libraries
+
+```{r message=F,warning=F}
+library(ggplot2)
+library(maps)
+library(mapproj)
+library(party)
+library(lattice)
+library(rsq)
+library(car)
+library(lme4)
+library(MuMIn)
+library(sjPlot)
+library(glmmTMB)
+library(lmtest)
+library(ggpubr)
+library(ape)
+library(caper)
+library(phytools)
+library(stringr)
+library(polycor)
+library(forcats)
+library(fields)
+library(RColorBrewer)
+library(brms)
+```
+
+
+# Load data
+
+Load the main data and make sure the categorical variables are treated appropriately.
+
+```{r}
+d = read.csv("../data/clean/monsters.csv",stringsAsFactors = F)
+```
+
+For convenience, make a labelled monster variable.
+
+```{r}
+d$monster_present2 = factor(d$monster_present,
+                            labels=c("Monster Absent","Monster Present"))
+```
+
+Make sure class and caste are categorical variables
+
+```{r}
+d$class.stratified = factor(d$class.stratified, labels = c("Not stratified", "Class stratified"))
+d$caste.stratified = factor(d$caste.stratified, labels = c("Not stratified", "Caste stratified")) 
+```
+
+Urbanization as ordered category
+
+```{r}
+d$urban = factor(d$urban, ordered = TRUE, 
+                 labels = c("< 100 persons", 
+                            "100-199 persons", 
+                            "200-399 persons", 
+                            "400-999 persons", 
+                            "1000+ persons"))
+```
+
+Agriculture as ordered category
+
+```{r}
+d$ag = factor(d$ag, ordered = TRUE, 
+                 labels = c("None", 
+                            "10% food supply", 
+                            "10 %; secondary", 
+                            "Primary; not intensive", 
+                            "Primary; intensive"))
+
+```
+
+Population Density as ordered category
+
+```{r}
+d$popdens = factor(d$popdens, ordered = TRUE, 
+                 labels = c("< 1 person / sq. mile", 
+                            "1-5 persons / sq. mile", 
+                            "5.1-25 persons/ sq. mile", 
+                            "26-100 persons  / sq. mile", 
+                            "100 persons / sq. mile"))
+```
+
+Fixity of Residence as ordered category
+
+```{r}
+d$fixity = factor(d$fixity, ordered = TRUE, 
+                 labels = c("Nomadic", 
+                            "Seminomadic", 
+                            "Semisedentary", 
+                            "Sedentary; impermanent", 
+                            "Sedentary"))
+
+```
+
+Land Transport as ordered category
+
+```{r}
+d$land = factor(d$land, ordered = TRUE, 
+                 labels = c("Human only", 
+                            "Pack Animals", 
+                            "Draft Animals", 
+                            "Animal-drawn vehicles", 
+                            "Automotive vehicles"))
+
+```
+
+Contact as an ordered category
+
+```{r}
+d$contact = factor(d$contact, ordered = TRUE, 
+                 labels = c("Rare or never", 
+                            "Occasional", 
+                            "Frequent"))
+
+```
+
+Money as ordered category
+
+```{r}
+d$money = factor(d$money, ordered = TRUE, 
+                 labels = c("None", 
+                            "Domestically usable particles", 
+                            "Alien currency", 
+                            "Elementary forms", 
+                            "True money"))
+```
+
+Political Integration as ordered category
+
+```{r}
+d$politic = factor(d$politic, ordered = TRUE, 
+                 labels = c("None", 
+                            "Autonomous local communities", 
+                            "1 level above community", 
+                            "2 levels above community", 
+                            "3 levels above community"))
+```
+
+Social Stratification as ordered category
+
+```{r}
+d$strata = factor(d$strata, ordered = TRUE, 
+                 labels = c("Egalitarian", 
+                            "Wealth Differences or hereditary slavery", 
+                            "2 social classes, no castes/slavery", 
+                            "2 social classes, castes/slavery", 
+                            "3 social classes or castes, w/ or w/out slavery"))
+```
+
+Technological Specialization as ordered category
+
+```{r}
+d$tech = factor(d$tech, ordered = TRUE, 
+                 labels = c("None", 
+                            "Pottery only", 
+                            "Loom weaving only", 
+                            "Metalwork only", 
+                            "Smiths, weavers, potters"))
+```
+
+Writing and Records as ordered category
+
+```{r}
+d$writing = factor(d$writing, ordered = TRUE, 
+                 labels = c("None", 
+                            "Mnemonic devices", 
+                            "Nonwritten records", 
+                            "True writing; no records", 
+                            "True writing, records"))
+```
+
+Market Exchange as ordered category
+
+```{r}
+d$market = factor(d$market, ordered = TRUE, labels = c("Local", 
+                                                       "Outside Local", 
+                                                       "Regional",
+                                                       "Supra-Regional"))
+```
+
+Collapse land transport categories 4 and 5
+
+```{r}
+d$land = forcats::fct_collapse(d$land, 
+           "Human only"   = c("Human only"),
+           "Pack Animals"  = c("Pack Animals"),
+           "Draft Animals" = c("Draft Animals"),
+           "Wheeled Vehicles"   = c("Animal-drawn vehicles", "Automotive vehicles"))
+
+```
+
+Collapse technological specialization
+
+```{r}
+d$tech = forcats::fct_collapse(d$tech,
+           "None" = c("None"),
+           "Pottery or Loom" = c("Pottery only", "Loom weaving only"),
+           "Metallurgy" = c("Metalwork only"),
+           "Multiple specialists" = c("Smiths, weavers, potters"))
+```
+
+Collapse True writing in Writing
+
+```{r}
+d$writing = forcats::fct_collapse(d$writing, 
+            "None" = c("None"), 
+            "Mnemonic devices" = c("Mnemonic devices"), 
+            "Nonwritten records" = c("Nonwritten records"), 
+            "True writing" = c("True writing; no records", "True writing, records"))
+```
+
+\clearpage
+\newpage
+
+# Data plots
+
+```{r}
+stackedBar = function(var,xtitle,hjust=-0.7){
+  gx = ggplot(d,aes_string(fill="monster_present2",x=var)) +
+    geom_bar() +
+    ylab("Number of societies") + 
+    scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
+    theme(legend.position = "top",
+          legend.justification = c(1,0),
+          axis.title.y = element_blank(),
+          legend.title = element_blank(),
+          plot.title = element_text(hjust = hjust,vjust=-6,size = 20)) +
+    ggtitle(xtitle)+
+    coord_flip()
+  fn=paste0("../results/bar/Bar_",gsub(" ","_",xtitle),".pdf")
+  pdf(fn,width=8,height=4)
+  plot(gx)
+  dev.off()
+  gx
+}
+
+stackedBar("strata","Social Stratification")
+stackedBar("land","Land Vehicles",-0.15)
+stackedBar("contact","Contact with other societies",-0.15)
+stackedBar("urban","Urbanization",-0.1)
+stackedBar("popdens","Population Density",-0.3)
+stackedBar("fixity","Fixity",-0.1)
+stackedBar("money","Money",-0.15)
+stackedBar("politic","Political stratification",-0.35)
+stackedBar("tech","Technical specialists",-0.2)
+stackedBar("writing","Writing",-0.15)
+```
+
+
+
+\clearpage
+\newpage
+
+# Hypothesis tests
+
+## Are composite monsters universal?
+
+```{r}
+table(d$monster_present)
+prop.table(table(d$monster_present))
+```
+
+Composite monsters were present in `r sum(d$monster_present)` societies (`r 100*round(sum(d$monster_present)/nrow(d),4)`%) and absent in `r sum(!d$monster_present)`. These represent societies that speak languages from `r length(unique(d[d$monster_present,]$language_family))` different language families, including `r sum(grepl("Isolate",d[d$monster_present,]$language_family))` isolates.
+
+Plot map of the world:
+
+```{r}
+d$lon2 <- ifelse(d$longitude < -25, d$longitude + 360, d$longitude)
+mapWorld <- map_data('world', wrap=c(-25,335), ylim=c(-55,75))
+d$`Composite Monsters` = factor(d$monster_present,labels=c("Absent","Present"))
+monsterMap = ggplot() +
+geom_polygon(data = mapWorld, aes(x=long, y = lat, group = group),
+             fill="lightgray") +
+  geom_point(data = d, aes(x = lon2, y = latitude,
+                           colour=`Composite Monsters`)) +
+  coord_map(projection = "gall",0) +
+  theme(legend.position = "top",axis.title = element_blank())
+monsterMap
+pdf("../results/MonsterMap.pdf",width=8,height=5)
+monsterMap
+dev.off()
+```
+
+There does not appear to be a high degree of geographic clustering. Indeed, running Moran's I test for geospatial autocorrelation shows that there is no significant spatial clustering:
+
+```{r}
+# Distance between points
+mdists = rdist.earth(cbind(d$longitude, d$latitude),miles = F)
+# Invert
+mdists.inv <- 1/mdists
+diag(mdists.inv) <- 0
+Moran.I(d$monster_present, mdists.inv)
+```
+
+
+\clearpage
+\newpage
+
+## Phylogenetic signal
+
+The SCCS sample aims for maximum diversity across the world. This is not ideal for testing whether the presence of composite monsters has a phylogenetic signal. Still, some formal tests can be run. 
+
+The raw data folder includesn phylogenetic trees based on linguistic properties, downloaded from [https://github.com/D-PLACE/dplace-data/tree/master/phylogenies/](https://github.com/D-PLACE/dplace-data/tree/master/phylogenies/). The D-PLACE database links these languages to SCCS societies. In the tests below, we look at Austronesian (Gray et al., 2009) and Bantu (Grollemund et al., 2015). Similar phylogenies are available for Indo-Europen, Semitic and Uto-Aztecan languages, but these only contain 3 or fewer societies in the SCCS.
+
+Two formal tests of phylogenetic signal are computed. First, the D statistic for binary traits (Fritz & Purvis, 2010). The statistic reflects the estimated number of changes along the phylogeny to produce the observed data at the tips. A statistic near 0 suggests that the trait is highly conserved (strong signal), and a near 1 suggests the trait is similar to a random trait (no phylogenetic signal). Values above 1 indicate that related societies are more different than would be expected by chance (overdispersion). This statistic is compared to two models of cultural evolution: random distribution (where the tips are shuffled and the trait is re-calcualted), and Brownian motion (a continuous trait which takes a random walk is simulated and converted to a binary one). 
+
+The second statistic is Pagel's lambda (Pagel, 1999). It indicates the extent of the scaling of the branch lengths that would be required for the data to fit a model of Brownian motion. Values close to 0 have low phylogenetic signal, and values close to 1 have high phylogenetic signal.
+
+```{r}
+# Function to run phylogenetic tests
+runPhylogenyTest = function(treeFile, treeLabelFile,plotType="flat"){
+# Load trees
+  tree = read.nexus(treeFile)
+  treeLabels = read.csv(treeLabelFile,stringsAsFactors = F)
+  
+  # Taxa data has multiple codes per locus
+  # So identify SCCS ID
+  treeLabels$SCCSID = str_extract(treeLabels$soc_ids,"SCCS[0-9]+")
+  
+  # Set labels of tree to be D-PLACE xd-ids
+  tree$tip.label = treeLabels[match(tree$tip.label,treeLabels$taxon),]$SCCSID
+  
+  # Remove tips that aren't in D-PLACE
+  # (remove tips that are now named "")
+  tree = drop.tip(tree,"")
+  
+  # Find tips in tree that aren't in our data:
+  notInMonsters = tree$tip.label[!tree$tip.label %in% d$id]
+  # Remove these tips from the tree
+  tree = drop.tip(tree, notInMonsters)
+  
+  # subset of data in tree
+  dx = d[d$id %in% tree$tip.label,]
+  
+  # Choose colours for the tips
+  chosenVariableToPlot = "monster_present"
+  tipColours = c("red", "green")[1 + dx[,chosenVariableToPlot]]
+  names(tipColours) = dx$id
+  tipColours = tipColours[tree$tip.label]
+  
+  # Convert labels back to names
+  tree$tip.label = dx[match(tree$tip.label,dx$id),]$pref_name_for_society
+  
+  if(plotType=="flat"){
+    plot(tree)
+    tiplabels(pch=16,col=tipColours,adj = 0.4)
+  } else{
+    tree$tip.label = iconv(tree$tip.label,sub='')
+    plot.phylo(tree,align.tip.label=0)
+    tiplabels(pch=16,col=tipColours)
+    dx$pref_name_for_society = iconv(dx$pref_name_for_society,sub="")
+  }
+  
+  tree = di2multi(tree)
+  
+  # Calculate phylogenetic signal
+  # (Phylo - D)
+  pd = phylo.d(data=dx[,c("pref_name_for_society","monster_present")],
+          phy=tree,
+          names.col = pref_name_for_society, 
+          binvar = monster_present,permut = 100000)
+  print(pd)
+  # Pagel's Lambda
+  x = dx$monster_present
+  names(x) = dx$pref_name_for_society
+  print(phylosig(tree,x,method="lambda"))
+}
+
+```
+
+### Austronesian
+
+Tree from Gray et al. (2009)
+
+```{r}
+set.seed(2389)
+runPhylogenyTest("../data/raw/trees/Austronesian/summary.trees",
+                 "../data/raw/trees/Austronesian/taxa.csv")
+```
+
+### Bantu
+
+Tree from Grollemund et al. (2015)
+
+```{r}
+runPhylogenyTest("../data/raw/trees/Bantu/summary.trees",
+                 "../data/raw/trees/Bantu/taxa.csv")
+```
+
+### Global
+
+Tree from Jäger (2018). This is a global tree of languages, calculated from an analysis of the forms of basic vocabulary words. While this may not be ideal for the current questions, it's the best currently available global tree of languages.
+
+```{r fig.height=11}
+runPhylogenyTest(
+  "../data/raw/trees/Global/JaegerGlobalTree_SCSS.tree",
+  "../data/raw/trees/Global/taxa.csv", plotType = "big")
+```
+
+### Summary
+
+In all cases above, both tests suggest a low phylogenetic signal. There is some evidence of overdispersion. However, the current sample of cultures is not ideal to test whether the presence of composite monsters follows laws of cultural evolution. Rather, the conclusion at this point is that there is little historical signal to control for, which is expected given that we're using the SCCS sample.
+
+
+\clearpage
+\newpage
+
+# Explanatory factors
+
+## Ethnographic coverage
+
+Coding presence and absence from ethnographic sources can be affected by the amount of ethnographic materials available. Although we use multiple sources, HRAF was the main source, and indeed, we found that the presence of monsters can be predicted by a greater number of sources and source pages in HRAF:
+
+```{r}
+t.test(d$HRAFNumPages~d$monster_present)
+t.test(d$HRAFNumSources~d$monster_present)
+```
+
+On average, societies with monsters present were covered by sources `r round(mean(d[d$monster_present,]$HRAFNumSources),1)` and `r round(mean(d[d$monster_present,]$HRAFNumPages),1)` pages. Societies with monsters absetn were coded by `r round(mean(d[!d$monster_present,]$HRAFNumSources),1)` sources and `r round(mean(d[!d$monster_present,]$HRAFNumPages),1)` pages.
+
+This is an alternative explanation for the presence and absence of monsters, so we control for this in the explantory model below. The number of pages and number of sources are highly correlated, so we choose just one variable. The number of pages is a stronger predictor than the number of sources, and using the log of the number of pages makes this variable normally distributed and still stronger associated:
+
+```{r}
+t.test(log(d$HRAFNumSources)~d$monster_present)
+boxplot(log(d$HRAFNumPages)~d$monster_present2)
+```
+
+So we will control for log number of pages in HRAF.
+
+```{r}
+d$HRAFNumPages.log = log(d$HRAFNumPages)
+```
+
+
+
+## Social stratification
+
+Is the presence of composites associated with increased social stratification?
+
+Fisher's exact test of the association between monster presence and class stratification as an ordered variable
+
+```{r}
+tx = table(d$strata,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$strata),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+
+The strata variable is derived from two earlier measures of class stratification and caste stratification. These variables are highly correlated, but since 'strata' has more ordered levels and therefore a more specific hypothesis, we use this instead of the other two. We note below that the association with composite monsters is significant for the class stratificaiton variable, but not significant for caste stratification variable.
+
+Fisher test of the association between monster presence and class stratification:
+
+```{r}
+tx = table(d$class.stratified,d$monster_present2)
+print(tx)
+print(round(100*prop.table(tx,1),2))
+fisher.test(tx)
+```
+
+Test caste stratification:
+
+```{r}
+tx = table(d$caste.stratified,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+fisher.test(tx)
+```
+
+## Increased travel
+
+Do composite monsters reflect an increased interest in intersociety cultural differences accompanying increased long-distance travel? Murdock and Provost’s (1973) scale of Land Transport serves as our proxy measure for increased long-distance travel in SCCS societies.
+
+```{r}
+tx = table(d$land,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$land),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+```{r}
+tx = table(d$fixity,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+cor(as.numeric(d$fixity),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+## Contact with other societies
+
+From Ross (1983)
+
+```{r}
+tx = table(d$contact,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+cor(as.numeric(d$contact),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+
+## Urbanisation
+
+In the case of the Bronze Age Near East and Mediterranean, Wengrow (2013, 74) has argued that “urban and state-like societies” provided a setting conducive for composites. If this is generalizable to a global ethnographic sample, we ought to find composite beings associated with an increased Urbanization and/or an increased Level of Political Integration (Murdock and Provost 1973). 
+
+Test urbanization:
+
+```{r}
+tx = table(d$urban,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$urban),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+Test political integration:
+
+```{r}
+tx = table(d$politic,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$politic),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+## Technology
+
+Wengrow (2014) sees Bronze Age composite figures as operating according to the same underlying logic as particular crafting technologies and bureaucratic technologies of writing and record-keeping (the latter also highlighted by Graeber (2015, xvii)). Are composite beings globally associated with greater specialization in crafting or recording-keeping technologies?
+
+Technology specialists:
+
+```{r}
+tx = table(d$tech,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$tech),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+Writing technology:
+
+```{r}
+tx = table(d$writing,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$writing),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+## Other measures
+
+Money
+
+```{r}
+tx = table(d$money,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$money),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+Agriculture
+
+```{r}
+tx = table(d$ag,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$ag),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+Population density
+
+```{r}
+tx = table(d$popdens,d$monster_present2)
+tx
+round(100*prop.table(tx,1),2)
+# Rank correlation
+cor(as.numeric(d$popdens),
+    as.numeric(d$monster_present2),method="kendall")
+fisher.test(tx)
+```
+
+```{r echo=F,eval=F,message=F,error=F}
+library(Gifi)
+pc = princals(d[, c("strata","urban","ag","popdens",
+                  "fixity","money","land","tech","writing")],ndim = 2)
+plot(pc,plot.type = "biplot",)
+plot(pc$objectscores[,1],pc$objectscores[,2],col=d$monster_present2)
+```
+
+
+
+\clearpage
+\newpage
+
+# Combined model
+
+Various measures above co-occur with the presence of composite monsters. However, many sociocultural variables correlate with each other, making it unclear which variables are directly associated. How might we determine which of these variables are most important when accounting for the presence of composite beings in our global ethnographic sample? 
+
+Below, we use a machine learning method (decision trees and random forests) to identify the most efficient combination of variables to predict the presence of composite monsters. We then entered these variables into a predictive regression model to test significance.
+
+Decision trees are a computational method of making predictions by dividing the data into sub-sets (see Strobl, Malley & Tutz, 2009). The algorithm works out the most efficient series of binary questions to ask about a set of independent variables in order to make a guess about the dependent value of a data point. The method is robust to correlations between independent variables and to small sub-sample sizes, and it can detect interactions and non-linearities in the data.
+
+A single tree is the most efficient set of questions for the given dataset. However, small differences in the sample could lead to very different trees. One way of evaluating the relative importance of variables is to calculate a large number of decision trees using random sub-samples of data and independent variables. Each variable receives an "importance" score based on how many trees it is selected for and how high in the tree the variable is placed.
+
+For use of decision trees in social science, see Roberts, Torreira & Levinson (2015).
+
+## Decision tree for selecting variables
+
+```{r}
+decisionTree = ctree(factor(monster_present) ~ 
+                         strata + 
+                         urban + ag + popdens + fixity + 
+                         land + money + politic + 
+                         tech + writing, data = d)
+plot(decisionTree)
+```
+
+Now we calculate the importance scores with a random forest. The variable 'market' has many missing values, limiting the number of complete observations. So the first forest is run without this variable:
+
+```{r}
+randomForest = cforest(factor(monster_present) ~ 
+                         strata + 
+                         urban + ag + popdens + fixity + 
+                         land + money + politic + 
+                         tech + writing, data = d)
+importance = varimp(randomForest)
+dotplot(sort(importance),xlab="Variable Importance")
+```
+
+Random forest including market:
+
+```{r}
+randomForest = cforest(factor(monster_present) ~ 
+                         market + 
+                         strata + 
+                         urban + ag + popdens + fixity + 
+                         land + money + politic + 
+                         tech + writing, data = d)
+importance = varimp(randomForest)
+dotplot(sort(importance),xlab="Variable Importance")
+
+```
+
+The "market" variable seems relatively important, though strata and land are still the most important. Since including 'market' limits the data sample size, we will not include it in the combined model.
+
+\clearpage
+\newpage
+
+## Predictive model
+
+Below we fit a binomial regression model, predicting whether a monster is present or absent. The independent variables are added to the model one by one in the order identified by the random forests procedure. In order to obtain a relatively simple model that is not over-fitted, we stop when adding variables does not significantly increase the fit of the model to the data. This is evaluated using a likelihood ratio test.
+
+For the ordered factors, use (reverse) Helmert coding, so each coefficient compares the current level to the previous level of the variable.
+
+```{r}
+contrasts(d$strata) = contr.helmert(5)
+contrasts(d$land) = contr.helmert(4)
+contrasts(d$fixity) = contr.helmert(5)
+```
+
+Build a series of models, each adding a variable. Start with the baseline model, using just the log number of pages of documentation:
+
+```{r}
+m0 = glm(factor(monster_present) ~ 1 + HRAFNumPages.log, 
+         family="binomial",data=d)
+summary(m0)
+```
+
+Add the cultural variables in the order suggested by the random forests analysis:
+
+```{r}
+m1 = update(m0, ~.+strata)
+m2 = update(m1, ~.+land)
+m3 = update(m2, ~.+fixity)
+```
+
+Use a likelihood ratio test to test whether adding each variable increases the fit of the model
+
+```{r}
+lrtest(m0,m1,m2,m3)
+```
+
+Including `strata` and `land` improve the model, but `fixity` does not.
+
+Test if the interaction between strata and land is significant:
+
+```{r}
+m4 = update(m2, ~.+ strata:land)
+lrtest(m2,m4)
+```
+
+No, so stick with model 2 (strata and land). The summary below shows how each level of strata and land change the estimate of the likelihood of monsters being present. Each estimate compares the current level to the prior level. It appears as if the critical threshold for strata is between Egalitarian and other societies. For `land`, the critical threshold is between those with only human or pack animal transport, and other societies. These results reflect the decision tree.
+
+```{r}
+summary(m2)
+```
+
+F-test to confirm the claims above for each variable:
+
+```{r}
+car::Anova(m2)
+```
+
+Pseudo R-squared for model:
+
+```{r}
+MuMIn::r.squaredLR(m2)
+```
+
+### Plotting the model results
+
+We want the plot to reflect the confidence intervals around the estimates. 
+
+Plot the model:
+
+```{r}
+plt = plot_model(m2,"pred")
+p1 = plt[[2]] + coord_flip(ylim=c(0,1)) + 
+  ggtitle("")+
+  theme(axis.title.y = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  ylab("Hybrid Monsters Present")
+p2 = plt[[3]] + coord_flip(ylim=c(0,1)) +
+  ggtitle("")+
+  theme(axis.title.y = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  ylab("Hybrid Monsters Present")
+
+bigplot = ggarrange(p1,
+          ggarrange(ggplot() + theme_void(),
+                    p2,nrow=1,widths = c(1,3),
+                    labels=c("","")),
+          ncol = 1, labels=c("Social Strata","Land Vehicles"))
+bigplot
+pdf("../results/BigPlot.pdf",width=6,height=4)
+bigplot
+dev.off()
+  
+```
+
+Below we fit a mixed effects model with random effects for language family. This strategy is used to control for the historical relatedness of societies. However, the result is a fit that essentially ignores the random effects and is almost identical to the fixed-effects model above. In other words, the relatedness of societies does not seem to affect the results. 
+
+```{r}
+mMF = glmer(factor(monster_present) ~  1 + HRAFNumPages.log + strata + land + 
+              (1 | language_family), 
+           family="binomial", data = d)
+summary(mMF)
+```
+
+\clearpage
+\newpage
+
+## Bayesian estimation
+
+The estimation above has a large uncertainty for the probability of composite monsters for societies with wheeled vehicles. This is despite 100% of societies with wheeled vehicles having composite monsters. To test whether this is due a to poor model convergence, we use a different framework for estimating the model parameters. Below we use a Bayesian estimation using *brms*, using unifnromative priors. We demonstrate that the coefficient estimates are almost identical, but that the estimate for the confidence interval for societies with wheeled vehicles is much narrower, which fits better with the overall data.
+
+
+```{r cache=T,message=F,warning=F,error=F}
+set.seed(2189)
+warmupN = 1000
+mB = brm(as.numeric(monster_present) ~ 
+           HRAFNumPages.log +
+           strata+land,warmup = warmupN,
+         iter = 100000,cores = 4,chains=8,
+         family="bernoulli",data=d)
+plot_model(mB,"pred")
+summary(mB)
+```
+
+Plot model convergence:
+
+```{r echo=F,message=F,warning=F,error=F}
+sampleSize = 1000
+col = paste0(brewer.pal(7,"YlOrRd"),"88")
+
+dr = brms::as_draws(mB)
+vars = names(dr$`1`)
+vars = vars[!grepl("_$",vars)]
+for(var in vars){
+  for(chain in names(dr)){
+    sx = dr[[chain]][[var]]
+    sx = sx[warmupN:length(sx)]
+    sx = sx[seq(1,length(sx),length.out = sampleSize)]
+    if(chain==1){
+      plot(sx,type='l',col="#000000BB", main=var,xlab="",xaxt='n')
+    } else{
+      points(sx,type = 'l',col=col[as.numeric(chain)-1])
+    }
+  }
+}
+```
+
+
+Plot the results:
+
+```{r}
+pltB = plot_model(mB,"pred")
+p1B = pltB[[2]] + coord_flip(ylim=c(0,1)) + 
+  ggtitle("")+
+  geom_point(size=2.5)+
+  theme(axis.title.y = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  ylab("Hybrid Monsters Present")
+p2B = pltB[[3]] + coord_flip(ylim=c(0,1)) +
+  ggtitle("")+
+  geom_point(size=2.5)+
+  theme(axis.title.y = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  ylab("Hybrid Monsters Present")
+
+bigplotB = ggarrange(p1B,
+          ggarrange(ggplot() + theme_void(),
+                    p2B,nrow=1,widths = c(1,3),
+                    labels=c("","")),
+          ncol = 1, labels=c("Social Strata","Land Vehicles"))
+bigplotB
+pdf("../results/BigPlot_Bayesian.pdf",width=6,height=4)
+bigplotB
+dev.off()
+```
+
+Compare estimates between the standard and Bayesian models, the major difference is for wheeled vehicles:
+
+```{r}
+plot(summary(mB)$fixed$Estimate,
+     m2$coefficients)
+abline(0,1)
+cor(summary(mB)$fixed$Estimate,
+     m2$coefficients)
+```
+
+
+\clearpage
+\newpage
+
+# Unclear cases
+
+In nine cases, possible composite beings were identified, but either the available descriptions were too vague or else the sources were an insufficient match to the SCCS time period or community. In the analyses above, these cases were assumed to have composite beings. Here we test whether that assumption is affecting the results. 
+
+Since the number of unclear cases is small, we can run the test with all possible combinations of presence and absence (there are 512 possible combinations), re-run the test, and see if the result changes. Note that controls for multiple comparisons are not needed: we're not claiming that any one significant result proves the hypothesis: we're expecting that ALL tests below should be significant in order for the hypothesis to be robust.
+
+```{r}
+# Order by unclear so unclear cases are at the top
+d = d[order(d$monster_unclear,decreasing = T),]
+# Generate all possible combinations of presence/absence for
+# the nine cases
+possibleCombinationsOfUnclearCases =
+  expand.grid(c(T,F),c(T,F),c(T,F),c(T,F),c(T,F),c(T,F),c(T,F),c(T,F),c(T,F))
+
+testUnclear = function(varToTest){
+    print(paste("*",varToTest,"*"))
+    fx1 = fisher.test(
+      table(d[!d$monster_unclear,]$monster_present,
+            d[!d$monster_unclear,varToTest]))
+    print("Excludnig unclear cases:")
+    print(fx1$p.value)
+    # For each possible combination ...
+    rangeOfFisherPValues = 
+    apply(possibleCombinationsOfUnclearCases,1,
+        function(X){
+          # ... replace the nine cases with the possible combination
+          mPresent = d$monster_present
+          mPresent[1:9] = X
+          # Run the fisher test again
+          fx = fisher.test(table(mPresent,d[,varToTest]))
+          fx$p.value
+        })
+    # Return the range of values
+    print("Range of possible values:")
+    range(rangeOfFisherPValues)
+}
+
+testUnclear("strata")
+testUnclear("land")
+testUnclear("urban")
+testUnclear("politic")
+testUnclear("tech")
+testUnclear("writing")
+
+```
+
+All main tests are still significant when excluding the 9 unclear cases. In addition, for all main variables, there is no combination of the 9 unclear cases that increases the p-value above 0.05. This suggests the main qualitative conclusions are not affected by the unclear cases.
+
+In the code below, we re-run the combined model (m2) with all possible combinations of the uncertain data.
+
+```{r warning=F,message=F}
+# For each possible combination ...
+rangeOfValues = 
+apply(possibleCombinationsOfUnclearCases,1,
+    function(X){
+      # ... replace the nine cases with the possible combination
+      mPresent = d$monster_present
+      mPresent[1:9] = X
+      # Run the fisher test again
+      m2x = glm(factor(mPresent) ~ 
+                  HRAFNumPages.log + strata+land, family="binomial",data=d)
+      return(m2x$coefficients)
+    })
+coefRanges = cbind(
+  t(apply(rangeOfValues,1,range)),
+  coef(m2), confint(m2))
+coefRanges = as.data.frame(coefRanges)
+names(coefRanges) = c("unclearLow","unclearHigh","ModelEst",
+                      "ModelConfLow","ModelConfHigh")
+coefRanges$Var = rownames(coefRanges)
+```
+
+The results show that the range of coefficient estiamtes from the possible models above (red lines) are within the 95% confidence intervals of the coefficients for the main models (black lines):
+
+```{r}
+ggplot(coefRanges[2:6,],aes(x=1)) +
+  geom_point(aes(y=ModelEst,x=0.95)) +
+  geom_errorbar(aes(ymin=ModelConfLow,ymax=ModelConfHigh,
+                    x=0.95), width=0.1) +
+  geom_errorbar(aes(ymin=unclearLow,ymax=unclearHigh,
+                    x=1.05),colour="red",width=0.1) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())+
+  geom_hline(yintercept = 0, colour="gray")+
+  facet_grid(cols=vars(Var)) +
+  xlab("")+
+  coord_cartesian(ylim=c(-0.5,1.5))
+
+ggplot(coefRanges[7:9,],aes(x=1)) +
+  geom_point(aes(y=ModelEst,x=0.95)) +
+  geom_errorbar(aes(ymin=ModelConfLow,ymax=ModelConfHigh,
+                    x=0.95), width=0.1) +
+  geom_errorbar(aes(ymin=unclearLow,ymax=unclearHigh,
+                    x=1.05),colour="red",width=0.1) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())+
+  geom_hline(yintercept = 0, colour="gray")+
+  facet_grid(rows=vars(Var),scales = "free")
+  
+```
+
+We run a similar test below where all possible combinations are run, and we calculate the p-value from the F-test of the main combined model (m2). 
+
+```{r}
+rangeOfFTestProbs = 
+apply(possibleCombinationsOfUnclearCases,1,
+    function(X){
+      # ... replace the nine cases with the possible combination
+      mPresent = d$monster_present
+      mPresent[1:9] = X
+      # Run the fisher test again
+      m2x = glm(factor(mPresent) ~ 
+                  strata+land, family="binomial",data=d)
+      ft = car::Anova(m2x)
+      return(ft$`Pr(>Chisq)`)
+    })
+```
+
+Range of p-values for land show that all are below 0.05:
+```{r}
+range(rangeOfFTestProbs[2,])
+```
+
+The range of p-values for Strata show that 5 out of 512 tests have p-values above 0.05:
+
+```{r}
+range(rangeOfFTestProbs[1,])
+```
+
+We can see which settings of these tests lead to non-significance:
+
+```{r}
+# Table of strata for the uncertain condition
+d[1:9,c("pref_name_for_society","strata")]
+# Table where each column is a different combination
+#  of settings for the monster_present variable
+cbind( d[1:9,c("pref_name_for_society")],
+    t(possibleCombinationsOfUnclearCases[
+      which(rangeOfFTestProbs[1,]>0.05),]))
+```
+
+The uncertain cases include 5 egalitarian societies and 3 that have at least 2 social classes with castes/slavery. The non-significant results emerge when at least 4 of the egalitarian societies these have composite monsters, while the 3 more hierarchical societies have none. That is, when the data is exactly against the predicted direction.
+
+
+# References
+
+Fritz, S. A. and Purvis, A. (2010). Selectivity in mammalian extinction risk and threat types: a new measure of phylogenetic signal strength in binary traits. Conservation Biology, 24(4):1042-1051.
+
+Gray RD, Drummond AJ, & Greenhill SJ 2009. Language phylogenies reveal expansion pulses and pauses in Pacific settlement. Science, 323(5913), 479-483.
+
+Grollemund R, Branford S, Bostoen K, Meade A, Venditti C & Pagel M. 2015. Bantu expansion shows habitat alters the route and pace of human dispersals. Proceedings of the National Academy of Sciences of the USA, 112(43), 13296-13301.
+
+Jäger, G., 2018. Global-scale phylogenetic linguistic inference from lexical resources. Scientific Data, 5(1), pp.1-16.
+
+Pagel, M. 1999. Inferring the historical patterns of biological evolution. Nature 401, 877.
+
+Roberts, S.G., Torreira, F. and Levinson, S.C., 2015. The effects of processing and sequence organization on the timing of turn taking: a corpus study. Frontiers in psychology, 6, p.509.
+
+Ross, M. H. (1983). Political decision making and conflict: Additional cross-cultural codes and scales. Ethnology, 22(2), 169-192.
+
+Strobl, C., Malley, J. and Tutz, G., 2009. An introduction to recursive partitioning: rationale, application, and characteristics of classification and regression trees, bagging, and random forests. Psychological methods, 14(4), p.323.
