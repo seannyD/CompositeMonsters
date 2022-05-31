@@ -760,12 +760,12 @@ p1 = plt[[2]] + coord_flip(ylim=c(0,1)) +
   ggtitle("")+
   theme(axis.title.y = element_blank(),
         panel.grid.minor.y = element_blank()) +
-  ylab("Hybrid Monsters Present")
+  ylab("Composite Monsters Present")
 p2 = plt[[3]] + coord_flip(ylim=c(0,1)) +
   ggtitle("")+
   theme(axis.title.y = element_blank(),
         panel.grid.minor.y = element_blank()) +
-  ylab("Hybrid Monsters Present")
+  ylab("Composite Monsters Present")
 
 bigplot = ggarrange(p1,
           ggarrange(ggplot() + theme_void(),
@@ -841,13 +841,13 @@ p1B = pltB[[2]] + coord_flip(ylim=c(0,1)) +
   geom_point(size=2.5)+
   theme(axis.title.y = element_blank(),
         panel.grid.minor.y = element_blank()) +
-  ylab("Hybrid Monsters Present")
+  ylab("Composite Monsters Present")
 p2B = pltB[[3]] + coord_flip(ylim=c(0,1)) +
   ggtitle("")+
   geom_point(size=2.5)+
   theme(axis.title.y = element_blank(),
         panel.grid.minor.y = element_blank()) +
-  ylab("Hybrid Monsters Present")
+  ylab("Composite Monsters Present")
 
 bigplotB = ggarrange(p1B,
           ggarrange(ggplot() + theme_void(),
