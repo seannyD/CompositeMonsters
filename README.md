@@ -1,8 +1,11 @@
-# Composite Monsters
+# Global Sample of Composite Monsters
 
-Supporting materials for "Explaining Mythical Composite Monsters in a Global Cross-Cultural Sample"
+Supporting materials for:
 
-Composite beings ("monsters") are special kinds of mythical creatures that are comprised of a mix of different anatomical forms. There are several claims for why they appear in the religions and folklore of many societies, including claims that they are found universally. We attempt to identify the presence of composite monsters in the lore of a global sample of societies in order to test these claims. We find that they are not universal, and their presence or absence co-varies with social stratification and transport technology. This supports hypotheses that the cultural evolution of composite monsters is driven by concerns with social distinctions within societies as well as interest in distant cultures.
+Knowlton, T. W., & Roberts, S. G. (2023). Explaining mythical composite monsters in a global cross-cultural sample. Journal of Cognition and Culture, 1(aop), 1-24.
+https://doi.org/10.1163/15685373-12340176
+
+Composite beings ("hybrid monsters") are those mythical creatures composed of a mix of different anatomical forms. There are several scholarly claims for why these appear in the imagery and lore of many societies, including claims that they are found near-universally as well as those arguments that they co-occur with particular sociocultural arrangements. In order to evaluate these claims, we identify the presence of composite monsters cross-culturally in a global sample of societies, the Standard Cross-Cultural Sample. We find that composite beings are not universal, and that their presence or absence co-varies most significantly with social stratification and transportation technology. This supports hypotheses that the cultural evolution of composite monsters is driven by human concerns with social distinctions within societies as well as increased contact with distant peoples.
 
 
 Main analysis: [AnalyseCompositeMonsters.pdf](analysis/AnalyseCompositeMonsters.pdf)
